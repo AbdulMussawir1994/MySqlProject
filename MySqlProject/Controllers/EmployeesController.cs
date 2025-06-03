@@ -5,8 +5,8 @@ using MySqlProject.ServiceLayer.Interface;
 
 namespace MySqlProject.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     public class EmployeesController : ControllerBase
     {
         private readonly IEmployeeLayer _employeeLayer;
@@ -20,99 +20,51 @@ namespace MySqlProject.Controllers
         public async Task<ActionResult> GetEmployees(CancellationToken token)
         {
             var response = await _employeeLayer.GetEmployeesAsync(token);
-
-            if (!response.Status)
-            {
-                return BadRequest(response);
-            }
-
-            return Ok(response);
+            return response.Status ? Ok(response) : BadRequest(response);
         }
 
         [HttpPost("Create")]
         public async Task<ActionResult> CreateNewEmployee([FromBody] CreateEmployeeDto model, CancellationToken token)
         {
             if (model is null)
-                return BadRequest(new MobileResponse<bool> { Status = false, Message = ApiResponse.InvalidInput });
+                return BadRequest(MobileResponse<bool>.Fail(ApiResponse.InvalidInput));
 
             var response = await _employeeLayer.CreateEmployeeAsync(model, token);
-
-            if (!response.Status)
-                return BadRequest(response);
-
-            return Ok(response);
+            return response.Status ? Ok(response) : BadRequest(response);
         }
 
-        [HttpPut(template: "Update/{Id}")]
-        public async Task<ActionResult> UpdateEmployee(int Id, [FromBody] CreateEmployeeDto model, CancellationToken token)
+        [HttpPut("Update/{id:int}")]
+        public async Task<ActionResult> UpdateEmployee(int id, [FromBody] CreateEmployeeDto model, CancellationToken token)
         {
             if (model is null)
-                return BadRequest(new MobileResponse<bool> { Status = false, Message = ApiResponse.InvalidInput });
+                return BadRequest(MobileResponse<bool>.Fail(ApiResponse.InvalidInput));
 
-            var response = await _employeeLayer.UpdateEmployeeAsync(Id, model, token);
-
-            if (!response.Status)
-                return BadRequest(response);
-
-            return Ok(response);
+            var response = await _employeeLayer.UpdateEmployeeAsync(id, model, token);
+            return response.Status ? Ok(response) : BadRequest(response);
         }
 
-        [HttpGet("GetEmployee/{Id}")]
-        public async Task<ActionResult> GetEmployeeByIdAsync(int Id, CancellationToken cancellationToken)
+        [HttpGet("GetEmployee/{id:int}")]
+        public async Task<ActionResult> GetEmployeeByIdAsync(int id, CancellationToken token)
         {
-            if (Id <= 0)
-            {
-                return StatusCode(StatusCodes.Status400BadRequest, ApiResponse.InvalidInput);
-            }
-
-            var response = await _employeeLayer.GetEmployeeDetailByAsync(Id, cancellationToken);
-
-            if (!response.Status)
-            {
-                //_logger.LogWarning("GetEmployeeByIdAsync failed for Id = {Id}. Response: {@Response}", Id, response);
-                return StatusCode(StatusCodes.Status400BadRequest, response);
-            }
-
-            return Ok(response);
-
+            var response = await _employeeLayer.GetEmployeeDetailByAsync(id, token);
+            return response.Status ? Ok(response) : BadRequest(response);
         }
 
-        [HttpDelete("Delete/{Id}")]
-        public async Task<ActionResult> DeleteEmployeeAsync(int Id, CancellationToken cancellationToken)
+        [HttpDelete("Delete/{id:int}")]
+        public async Task<ActionResult> DeleteEmployeeAsync(int id, CancellationToken token)
         {
-            if (Id <= 0)
-            {
-                return StatusCode(StatusCodes.Status400BadRequest, ApiResponse.InvalidInput);
-            }
-
-            var response = await _employeeLayer.DeleteByIdAsync(Id, cancellationToken);
-
-            if (!response.Status)
-            {
-                //_logger.LogWarning("DeleteEmployee failed: {@Response}", response);
-                return StatusCode(StatusCodes.Status400BadRequest, response);
-            }
-
-            return Ok(response);
+            var response = await _employeeLayer.DeleteByIdAsync(id, token);
+            return response.Status ? Ok(response) : BadRequest(response);
         }
 
-        [HttpPatch]
-        [Route("PatchEmployee/{Id}")]
-        public async Task<ActionResult> EmployeeNameUpdate(int Id, string empName, CancellationToken cancellationToken)
+        [HttpPatch("PatchEmployee/{id:int}")]
+        public async Task<ActionResult> EmployeeNameUpdate(int id, [FromQuery] string empName, CancellationToken token)
         {
-            if (Id <= 0 || empName is null)
-            {
-                return BadRequest(new MobileResponse<bool> { Message = ApiResponse.InvalidInput, Status = false });
-            }
+            if (string.IsNullOrWhiteSpace(empName))
+                return BadRequest(MobileResponse<bool>.Fail(ApiResponse.InvalidInput));
 
-            var response = await _employeeLayer.PatchEmployeeAsync(Id, empName, cancellationToken);
-
-            if (!response.Status)
-            {
-                return StatusCode(StatusCodes.Status400BadRequest, response);
-            }
-
-            return Ok(response);
+            var response = await _employeeLayer.PatchEmployeeAsync(id, empName, token);
+            return response.Status ? Ok(response) : BadRequest(response);
         }
     }
 }

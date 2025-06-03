@@ -11,220 +11,144 @@ namespace MySqlProject.ServiceLayer.Repository
     public class EmployeeLayer : IEmployeeLayer
     {
         private readonly DataContext _ctx;
+
         public EmployeeLayer(DataContext ctx)
         {
             _ctx = ctx;
         }
-        public async Task<MobileResponse<IEnumerable<GetEmployeeDto>>> GetEmployeesAsync(CancellationToken cancellationToken)
+
+        public async Task<MobileResponse<IEnumerable<GetEmployeeDto>>> GetEmployeesAsync(CancellationToken token)
         {
-
-            var serviceResponse = new MobileResponse<IEnumerable<GetEmployeeDto>>();
-
             try
             {
-                var employees = await _ctx.Employees.AsNoTracking().AsSplitQuery().ToListAsync(cancellationToken).ConfigureAwait(false);
+                var employees = await _ctx.Employees
+                                          .AsNoTracking()
+                                          .AsSplitQuery()
+                                          .ToListAsync(token)
+                                          .ConfigureAwait(false);
 
-                if (employees.Any())
+                if (!employees.Any())
                 {
-                    serviceResponse.Data = employees.Adapt<IEnumerable<GetEmployeeDto>>();
-                    serviceResponse.Status = true;
-                    serviceResponse.Message = "Employee list fetched successfully.";
+                    return MobileResponse<IEnumerable<GetEmployeeDto>>.EmptySuccess(Enumerable.Empty<GetEmployeeDto>(), "No employees found.");
                 }
-                else
-                {
-                    serviceResponse.Data = Enumerable.Empty<GetEmployeeDto>();
-                    serviceResponse.Status = true;
-                    serviceResponse.Message = "No employees found.";
-                }
+
+                var dtoList = employees.Adapt<IEnumerable<GetEmployeeDto>>();
+                return MobileResponse<IEnumerable<GetEmployeeDto>>.Success(dtoList, "Employee list fetched successfully.");
             }
             catch (Exception ex)
             {
-                serviceResponse.Status = false;
-                serviceResponse.Message = $"An error occurred: {ex.Message}";
+                // Consider logging the exception here with a logger
+                return MobileResponse<IEnumerable<GetEmployeeDto>>.Fail($"An error occurred: {ex.Message}");
             }
-
-            return serviceResponse;
         }
 
-        public async Task<MobileResponse<GetEmployeeDto>> CreateEmployeeAsync(CreateEmployeeDto model, CancellationToken cancellationToken)
+        public async Task<MobileResponse<GetEmployeeDto>> CreateEmployeeAsync(CreateEmployeeDto model, CancellationToken token)
         {
-            var serviceResponse = new MobileResponse<GetEmployeeDto>();
-
             try
             {
-                var newEmployee = model.Adapt<Employee>();
+                var employee = model.Adapt<Employee>();
+                await _ctx.Employees.AddAsync(employee, token).ConfigureAwait(false);
+                var result = await _ctx.SaveChangesAsync(token).ConfigureAwait(false);
 
-                await _ctx.Employees.AddAsync(newEmployee, cancellationToken); // Use AddAsync for async behavior
-
-                var result = await _ctx.SaveChangesAsync(cancellationToken);
-
-                if (result > 0)
-                {
-                    serviceResponse.Status = true;
-                    serviceResponse.Message = "Employee added successfully.";
-                    serviceResponse.Data = newEmployee.Adapt<GetEmployeeDto>();
-                }
-                else
-                {
-                    serviceResponse.Status = false;
-                    serviceResponse.Message = "Failed to add new employee.";
-                }
+                return result > 0
+                    ? MobileResponse<GetEmployeeDto>.Success(employee.Adapt<GetEmployeeDto>(), "Employee added successfully.")
+                    : MobileResponse<GetEmployeeDto>.Fail("Failed to add new employee.");
             }
             catch (Exception ex)
             {
-                serviceResponse.Status = false;
-                serviceResponse.Message = $"An error occurred: {ex.Message}";
+                return MobileResponse<GetEmployeeDto>.Fail($"An error occurred: {ex.Message}");
             }
-
-            return serviceResponse;
-        }
-        public Task<object?> UpdateEmployeeAsync(CreateEmployeeDto model, CancellationToken token)
-        {
-            throw new NotImplementedException();
         }
 
-        public async Task<MobileResponse<GetEmployeeDto>> UpdateEmployeeAsync(int Id, CreateEmployeeDto model, CancellationToken token)
+        public async Task<MobileResponse<GetEmployeeDto>> UpdateEmployeeAsync(int id, CreateEmployeeDto model, CancellationToken token)
         {
-            var serviceResponse = new MobileResponse<GetEmployeeDto>();
-
             try
             {
-                // Fetch tracked entity for update
                 var employee = await _ctx.Employees
-                                         .FirstOrDefaultAsync(e => e.EmployeeId == Id, token);
+                                         .FirstOrDefaultAsync(e => e.EmployeeId == id, token)
+                                         .ConfigureAwait(false);
 
                 if (employee is null)
-                {
-                    return new MobileResponse<GetEmployeeDto>
-                    {
-                        Status = false,
-                        Message = "Employee not found."
-                    };
-                }
+                    return MobileResponse<GetEmployeeDto>.Fail("Employee not found.");
 
-                // Update fields (manual mapping or Mapster/AutoMapper)
                 employee.FullName = model.EmployeeName;
                 employee.Salary = model.Salary;
                 employee.DepartmentId = model.DepartmentId;
-                employee.HireDate = DateTime.UtcNow; // Only update if business logic requires
+                employee.HireDate = DateTime.UtcNow; // Update only if necessary
 
-                await _ctx.SaveChangesAsync(token);
+                await _ctx.SaveChangesAsync(token).ConfigureAwait(false);
 
-                serviceResponse.Status = true;
-                serviceResponse.Message = "Employee updated successfully.";
-                serviceResponse.Data = employee.Adapt<GetEmployeeDto>(); // Map to response DTO
+                return MobileResponse<GetEmployeeDto>.Success(employee.Adapt<GetEmployeeDto>(), "Employee updated successfully.");
             }
             catch (Exception ex)
             {
-                // Log exception if logging enabled
-                serviceResponse.Status = false;
-                serviceResponse.Message = $"An error occurred: {ex.Message}";
+                return MobileResponse<GetEmployeeDto>.Fail($"An error occurred: {ex.Message}");
             }
-
-            return serviceResponse;
         }
 
-        public async Task<MobileResponse<GetEmployeeDto>> GetEmployeeDetailByAsync(int Id, CancellationToken cancellationToken)
+        public async Task<MobileResponse<GetEmployeeDto>> GetEmployeeDetailByAsync(int id, CancellationToken token)
         {
-            var serviceResponse = new MobileResponse<GetEmployeeDto>();
-
             try
             {
                 var emp = await _ctx.Employees
-                                               .AsNoTracking()
-                                               .FirstOrDefaultAsync(x => x.EmployeeId == Id, cancellationToken);
+                                    .AsNoTracking()
+                                    .FirstOrDefaultAsync(x => x.EmployeeId == id, token)
+                                    .ConfigureAwait(false);
 
-                if (emp is null)
-                {
-                    serviceResponse.Status = false;
-                    serviceResponse.Message = "Employee not found.";
-                    return serviceResponse;
-                }
-
-                serviceResponse.Data = emp.Adapt<GetEmployeeDto>();
-                serviceResponse.Status = true;
-                serviceResponse.Message = "Fetched successfully.";
+                return emp is null
+                    ? MobileResponse<GetEmployeeDto>.Fail("Employee not found.")
+                    : MobileResponse<GetEmployeeDto>.Success(emp.Adapt<GetEmployeeDto>(), "Fetched successfully.");
             }
             catch (Exception ex)
             {
-                serviceResponse.Status = false;
-                serviceResponse.Message = $"An error occurred: {ex.Message}";
+                return MobileResponse<GetEmployeeDto>.Fail($"An error occurred: {ex.Message}");
             }
-
-            return serviceResponse;
         }
 
-        public async Task<MobileResponse<bool>> DeleteByIdAsync(int id, CancellationToken cancellationToken)
+        public async Task<MobileResponse<bool>> DeleteByIdAsync(int id, CancellationToken token)
         {
-            var serviceResponse = new MobileResponse<bool>();
-
             try
             {
-                var emp = await _ctx.Employees.FindAsync(new object[] { id }, cancellationToken);
+                var emp = await _ctx.Employees.FindAsync(new object[] { id }, token).ConfigureAwait(false);
 
                 if (emp is null)
-                {
-                    serviceResponse.Status = false;
-                    serviceResponse.Message = "Employee not found.";
-                    return serviceResponse;
-                }
+                    return MobileResponse<bool>.Fail("Employee not found.");
 
                 _ctx.Employees.Remove(emp);
-                await _ctx.SaveChangesAsync(cancellationToken);
+                await _ctx.SaveChangesAsync(token).ConfigureAwait(false);
 
-                serviceResponse.Status = true;
-                serviceResponse.Message = "Deleted successfully.";
+                return MobileResponse<bool>.Success(true, "Deleted successfully.");
             }
             catch (Exception ex)
             {
-                serviceResponse.Status = false;
-                serviceResponse.Message = $"An error occurred: {ex.Message}";
+                return MobileResponse<bool>.Fail($"An error occurred: {ex.Message}");
             }
-
-            return serviceResponse;
         }
 
-        public async Task<MobileResponse<GetEmployeeDto>> PatchEmployeeAsync(int Id, string empName, CancellationToken cancellationToken)
+        public async Task<MobileResponse<GetEmployeeDto>> PatchEmployeeAsync(int id, string empName, CancellationToken token)
         {
-            var serviceResponse = new MobileResponse<GetEmployeeDto>();
-
             try
             {
                 var emp = await _ctx.Employees
-                                              .AsTracking()
-                                              .FirstOrDefaultAsync(c => c.EmployeeId == Id, cancellationToken);
+                                    .AsTracking()
+                                    .FirstOrDefaultAsync(c => c.EmployeeId == id, token)
+                                    .ConfigureAwait(false);
 
                 if (emp is null)
-                {
-                    serviceResponse.Status = false;
-                    serviceResponse.Message = "Employee not found.";
-                    return serviceResponse;
-                }
+                    return MobileResponse<GetEmployeeDto>.Fail("Employee not found.");
 
                 if (emp.FullName != empName)
                 {
                     emp.FullName = empName;
-                    await _ctx.SaveChangesAsync(cancellationToken);
+                    await _ctx.SaveChangesAsync(token).ConfigureAwait(false);
+                }
 
-                    serviceResponse.Status = true;
-                    serviceResponse.Message = "Employee name updated successfully.";
-                    serviceResponse.Data = emp.Adapt<GetEmployeeDto>();
-                }
-                else
-                {
-                    serviceResponse.Status = true;
-                    serviceResponse.Message = "Employee name is already up-to-date.";
-                    serviceResponse.Data = emp.Adapt<GetEmployeeDto>();
-                }
+                return MobileResponse<GetEmployeeDto>.Success(emp.Adapt<GetEmployeeDto>(), "Employee name updated successfully.");
             }
             catch (Exception ex)
             {
-                serviceResponse.Status = false;
-                serviceResponse.Message = $"An error occurred: {ex.Message}";
+                return MobileResponse<GetEmployeeDto>.Fail($"An error occurred: {ex.Message}");
             }
-
-            return serviceResponse;
         }
-
     }
 }
