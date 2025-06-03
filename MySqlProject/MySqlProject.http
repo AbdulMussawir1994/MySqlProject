@@ -1,0 +1,11 @@
+@MySqlProject_HostAddress = http://localhost:5288
+
+GET {{MySqlProject_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+### Get Employees List (GET) with Paging
+GET {{MySqlProject_HostAddress}}/api/Employees/GetEmployees
+Content-Type: application/json
+Accept: application/json
+x-api-version: 2.0
