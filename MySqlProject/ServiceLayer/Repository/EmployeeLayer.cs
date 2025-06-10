@@ -76,6 +76,7 @@ namespace MySqlProject.ServiceLayer.Repository
                 employee.DepartmentId = model.DepartmentId;
                 employee.HireDate = DateTime.UtcNow; // Update only if necessary
 
+                _ctx.Employees.Update(employee);
                 await _ctx.SaveChangesAsync(token).ConfigureAwait(false);
 
                 return MobileResponse<GetEmployeeDto>.Success(employee.Adapt<GetEmployeeDto>(), "Employee updated successfully.");
