@@ -10,9 +10,9 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure MySQL with high performance and reliability
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
+// Configure MySQL with high performance and reliability
 builder.Services.AddDbContextPool<DataContext>(options =>
     options.UseMySql(connectionString,
         new MySqlServerVersion(new Version(8, 0, 33)), // Adjust to your version
@@ -26,6 +26,19 @@ builder.Services.AddDbContextPool<DataContext>(options =>
         })
     .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking) // Read-only optimization
 );
+
+// Configure SQL Server with high performance and reliability
+//builder.Services.AddDbContext<DataContext>(options =>
+//    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+//builder.Services.AddDbContext<DataContext>(options =>
+//      options.UseSqlServer(connectionString, sqlOptions =>
+//      {
+//          sqlOptions.EnableRetryOnFailure(
+//              maxRetryCount: 5,
+//              maxRetryDelay: TimeSpan.FromSeconds(10),
+//              errorNumbersToAdd: null);
+//      }));
 
 builder.Services.AddScoped<IEmployeeLayer, EmployeeLayer>();
 
